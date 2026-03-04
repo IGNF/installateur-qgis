@@ -20,7 +20,7 @@ import xml.etree.ElementTree as ET
 
 from progressbar import DownloadProgress
 
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
 REP_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main"
 PAC_URL = "http://calamarlog.ign.fr/proxy.pac"
 PLUGIN_MAITRE = "plugin_maitre"
@@ -29,6 +29,9 @@ DOSSIER_A_GARDER = "config_plugin_maitre"
 METADATA_FILE = "metadata.txt"
 COLOR_MAJ = "#d4d400"
 COLOR_NON_INSTALLE = "#ff6e6e"
+
+TITRE = "Installateur de plugin "
+VERSION = "v0.2"
 
 
 def log(message):
@@ -49,24 +52,24 @@ class InstallerDialog(QDialog):
         self.dico_plugin = {}
         # Charger le fichier .ui dans cette instance
         loadUi(self.resource_path("installer.ui"), self)
-        # Télécharger plugins.xml
-        # with tempfile.NamedTemporaryFile(delete=False, suffix=".xml") as tmp:
-        #     tmp_xml = tmp.name
-
-        # self.init_progressbar()
-        # self.progress.setLabelText("Connexion au dépot...")
-        # self.progress.setMaximum(3)
-        # self.progress.show()
-        # QCoreApplication.processEvents()
-
-        # if not self.download_file(PLUGINS_XML_GITHUB, tmp_xml):
-        #     raise Exception("Impossible de télécharger plugins.xml")
-        # self.getplugin_from_xml(tmp_xml)
-        # self.progress.setValue(1)
-        # self.progress.close()
 
         self.pushButton_installer.clicked.connect(self.on_installe_plugin)
         self.pushButton_tout_rien.clicked.connect(self.on_tout_rien)
+        self.pushButtonApropos.clicked.connect(self.on_a_propos)
+
+    def on_a_propos(self):
+        dlgAProposDe = QDialog()
+        loadUi(os.path.dirname(__file__) + "/aproposde.ui", dlgAProposDe)
+        dlgAProposDe.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.WindowCloseButtonHint)
+        dlgAProposDe.setWindowTitle(f"{TITRE} {VERSION}")
+        dlgAProposDe.pushButtonAffichedoc.clicked.connect(self.afficheDoc)
+        dlgAProposDe.exec_()
+
+    def afficheDoc(self):
+        if not os.path.isfile(os.path.join(os.path.dirname(__file__), "installateur.pdf")):
+            QMessageBox.warning(self,"Information","La documentation est introuvable")
+        else:
+            os.popen(os.path.join(os.path.dirname(__file__), "installateur.pdf"))
 
     def initialiser_apres_profil(self):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xml") as tmp:
@@ -93,7 +96,7 @@ class InstallerDialog(QDialog):
     def inti_dialog(self):
         self.label_non_installe.setStyleSheet(f"background-color: {COLOR_MAJ}")
         self.pushButton_tout_rien.setStyleSheet("font : bold ")
-        self.pushButton_installer.setStyleSheet("font : bold ;background-color: rgb(4,124,176 ); color: rgb(10,255,255);")
+        self.pushButton_installer.setStyleSheet("font : bold ;background-color: #00a108; color: white;")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.WindowCloseButtonHint)
         # tablewidget
         self.tablePlugins.horizontalHeader().setStyleSheet(
@@ -112,7 +115,7 @@ class InstallerDialog(QDialog):
         self.tablePlugins.verticalHeader().setDefaultSectionSize(20)
 
         for row, (nom,valeur) in enumerate(self.dico_plugin.items()):
-            version, description = valeur
+            version, description,lien = valeur
             item_name = QTableWidgetItem(nom)
             item_name.setFlags(item_name.flags() & ~Qt.ItemIsEditable)
             if nom == PLUGIN_MAITRE:
@@ -196,13 +199,15 @@ class InstallerDialog(QDialog):
 
     # téléchargement de : plugins.xml
     def download_file(self,url, dest,timeout = 5):
-
         """
             Télécharge un fichier avec progression et essaye successivement :
             1) Proxy système
             2) Proxy PAC
             3) Sans proxy
             """
+        print("Téléchargement de :", url)
+        print("Téléchargement vers  :", dest)
+        print("HOST :", requests.utils.urlparse(url).netloc)
         # self.progress.show()
         attempts = [
             ("proxy système (HTTPS_PROXY)", {}),
@@ -219,15 +224,19 @@ class InstallerDialog(QDialog):
                     r = session.get(url, stream=True, timeout=timeout)
                 else:
                     r = requests.get(url, stream=True, proxies=proxies, timeout=timeout)
+                    # r = requests.get(url,stream=True,proxies=proxies,
+                    #     headers={"User-Agent": "Mozilla/5.0"},
+                    #     timeout=20)
                 r.raise_for_status()
 
                 with open(dest, "wb") as f:
+                    # lecture par petits paquets de 8ko
                     for chunk in r.iter_content(chunk_size=8192):
                         if chunk:
                             f.write(chunk)
-
                             QCoreApplication.processEvents()
 
+                print(f"Connexion réussie avec : {mode} -> {proxies}")
                 log(f"Connexion réussie avec : {mode} -> {proxies}")
                 log(f"Téléchargement de : {dest} -> terminé\n")
                 return True
@@ -307,7 +316,8 @@ class InstallerDialog(QDialog):
             name = plugin.get("name")
             version = plugin.get("version")
             description = plugin.find("description")
-            self.dico_plugin[name] = [version, description.text]
+            download_url = plugin.find("download_url").text
+            self.dico_plugin[name] = [version, description.text,download_url]
             list_tmp += f"-{name}\n"
         return self.dico_plugin
 
@@ -322,9 +332,12 @@ class InstallerDialog(QDialog):
         progress = DownloadProgress(self, len(list_plugins))
         for idx, plugin in enumerate(list_plugins, start=1):
             progress.update(idx, f"Téléchargement de : {plugin}")
-            fic_source = f"{REP_GITHUB}/{plugin}.zip"
+
+            # fic_source = f"{REP_GITHUB}/{plugin}.zip"
+            download_url = self.dico_plugin[plugin][2]
+            fic_source = download_url
+
             fic_dest = f"{rep_installe}/{plugin}.zip"
-            # Supprimer le dossier du plugin s'il existe déjà
             rep_plugin = os.path.join(rep_installe, plugin)
             if os.path.exists(rep_plugin):
                 try:
@@ -332,7 +345,8 @@ class InstallerDialog(QDialog):
                     if plugin == PLUGIN_MAITRE:
                         self.suppr_plugin_maitre(rep_plugin)
                     else:
-                        shutil.rmtree(rep_plugin,onerror=self.remove_readonly)
+                        # Supprimer le dossier du plugin s'il existe déjà
+                        shutil.rmtree(rep_plugin, onerror=self.remove_readonly)
                 except Exception as e:
                     print("erreur" , e )
             self.download_file(fic_source, fic_dest)
@@ -417,6 +431,7 @@ class InstallerDialog(QDialog):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     dlg = InstallerDialog()
+    dlg.setWindowTitle(f"{TITRE} {VERSION}")
 
     if os.path.exists(FIC_LOG):
         os.remove(FIC_LOG)

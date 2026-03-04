@@ -4,7 +4,10 @@ import tldextract
 from PyInstaller.utils.hooks import collect_all
 
 # --- Collecte automatique des modules ---
-datas = [('installer.ui', '.')]
+datas = [
+    ('installer.ui', '.'),
+    ('aproposde.ui', '.')
+]
 binaries = []
 hiddenimports = []
 
