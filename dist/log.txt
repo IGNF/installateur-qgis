@@ -1,4 +1,4 @@
-[2026-03-04 14:10:01] Lancement de l'installateur
-[2026-03-04 14:10:04] Connexion réussie avec : proxy système (HTTPS_PROXY) -> {}
-[2026-03-04 14:10:04] Téléchargement de : C:\Users\gpecheur\AppData\Local\Temp\tmpv91xpx3h.xml -> terminé
+[2026-03-04 17:08:16] Lancement de l'installateur
+[2026-03-04 17:08:18] Connexion réussie avec : proxy système (HTTPS_PROXY) -> {}
+[2026-03-04 17:08:18] Téléchargement de : C:\Users\gpecheur\AppData\Local\Temp\tmpancfx3_r.xml -> terminé
 

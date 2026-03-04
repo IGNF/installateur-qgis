@@ -51,7 +51,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='installer',
+    name='PluginHub_Installer',
     debug=False,
     strip=False,
     upx=True,
