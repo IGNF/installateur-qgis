@@ -20,8 +20,12 @@ import xml.etree.ElementTree as ET
 
 from progressbar import DownloadProgress
 
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
-REP_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_SDIS.xml?nocache=1"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
+
+
+
 PAC_URL = "http://calamarlog.ign.fr/proxy.pac"
 PLUGIN_MAITRE = "plugin_maitre"
 FIC_LOG = "log.txt"
@@ -30,8 +34,8 @@ METADATA_FILE = "metadata.txt"
 COLOR_MAJ = "#d4d400"
 COLOR_NON_INSTALLE = "#ff6e6e"
 
-TITRE = "Installateur de plugin "
-VERSION = "v0.2"
+TITRE = "Installateur de plugin IGN "
+VERSION = "v0.3"
 
 
 def log(message):
@@ -78,6 +82,7 @@ class InstallerDialog(QDialog):
         progress = DownloadProgress(self, 1)
         progress.update(1, "Connexion au dépot ...")
         if not self.download_file(PLUGINS_XML_GITHUB, tmp_xml):
+            log("Impossible de télécharger plugins.xml")
             raise Exception("Impossible de télécharger plugins.xml")
         progress.close()
 
@@ -198,13 +203,65 @@ class InstallerDialog(QDialog):
     #         return {}
 
     # téléchargement de : plugins.xml
-    def download_file(self,url, dest,timeout = 5):
+    def download_file(self,url, dest,timeout = 10):
         """
             Télécharge un fichier avec progression et essaye successivement :
             1) Proxy système
             2) Proxy PAC
             3) Sans proxy
             """
+
+        print("Téléchargement de :", url)
+        print("Téléchargement vers :", dest)
+        log(f"Téléchargement de :{url}")
+
+        attempts = [
+            ("proxy système (env)", "ENV"),
+            ("proxy.pac", "PAC"),
+            ("sans proxy", "DIRECT")
+        ]
+        compt = 1
+        for mode, proxy_mode in attempts:
+            try:
+                print(f"→ Tentative avec : {mode}")
+
+                if proxy_mode == "ENV":
+                    r = requests.get(url, stream=True, timeout=timeout)
+
+                elif proxy_mode == "PAC":
+                    tldextract.extract = tldextract.TLDExtract(suffix_list_urls=None)
+                    session = PACSession()
+                    r = session.get(url, stream=True, timeout=timeout)
+
+                elif proxy_mode == "DIRECT":
+                    session = requests.Session()
+                    session.trust_env = False  # ⚠ ignore complètement HTTP_PROXY
+                    r = session.get(url, stream=True, timeout=timeout)
+
+                r.raise_for_status()
+
+                with open(dest, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            QCoreApplication.processEvents()
+
+                print(f"Connexion réussie avec : {mode}")
+                log(f"Connexion réussie avec : {mode}")
+                return True
+
+            except Exception as e:
+                print(f"Échec avec {mode} : {e}")
+                log(f"Tentative connexion {compt}/3 : Échec {mode}")
+                compt += 1
+
+        log(f"Impossible de télécharger {url} après toutes les tentatives.")
+        QMessageBox.critical(None, "erreur", f"Impossible de télécharger {url} après toutes les tentatives.")
+        os.startfile(FIC_LOG)
+        raise Exception("Impossible de télécharger le fichier après toutes les tentatives.")
+
+
+        # ************************************************
         print("Téléchargement de :", url)
         print("Téléchargement vers  :", dest)
         print("HOST :", requests.utils.urlparse(url).netloc)
@@ -214,7 +271,6 @@ class InstallerDialog(QDialog):
             ("proxy.pac", "PAC"),
             ("sans proxy", {"http": None, "https": None})
         ]
-
         for mode, proxies in attempts:
             try:
                 print(f"→ Tentative de connexion vers le dépot github avec : {mode}...")
@@ -224,9 +280,7 @@ class InstallerDialog(QDialog):
                     r = session.get(url, stream=True, timeout=timeout)
                 else:
                     r = requests.get(url, stream=True, proxies=proxies, timeout=timeout)
-                    # r = requests.get(url,stream=True,proxies=proxies,
-                    #     headers={"User-Agent": "Mozilla/5.0"},
-                    #     timeout=20)
+
                 r.raise_for_status()
 
                 with open(dest, "wb") as f:
@@ -244,66 +298,9 @@ class InstallerDialog(QDialog):
             except Exception as e:
                 log(f"Échec connexion {mode}")
 
-        log("Impossible de télécharger le fichier (ou plugin) après toutes les tentatives.")
+        # log(f"Impossible de télécharger {url} après toutes les tentatives.")
         raise Exception("Impossible de télécharger le fichier (ou plugin) après toutes les tentatives.")
-        # """
-        # Télécharge un fichier en essayant successivement :
-        # 1. Proxy système (HTTP_PROXY / HTTPS_PROXY)
-        # 2. Proxy PAC (si un PAC est configuré)
-        # 3. Sans proxy (force bypass)
-        # """
-        # # --- 1) Essai avec proxy système ---
-        # try:
-        #
-        #     print("→ Tentative avec proxy système…")
-        #     r = requests.get(url, timeout=timeout)
-        #     r.raise_for_status()
-        #     try:
-        #         with open(dest, "wb") as f:
-        #             f.write(r.content)
-        #         print(f"Sauvegarde de :{dest} terminée")
-        #     except IOError as e:
-        #         print(f"Erreur lors de la sauvegarde du fichier : {e}")
-        #         return False
-        #     return r.content
-        # except Exception as e:
-        #     print(f"  Échec proxy système : {e}")
-        #
-        # # --- 2) Essai via PAC ---
-        # try:
-        #     print("→ Tentative via PAC…")
-        #     tldextract.extract = tldextract.TLDExtract(suffix_list_urls=None)
-        #     session = PACSession()
-        #     r = session.get(url, timeout=timeout)
-        #     r.raise_for_status()
-        #     try:
-        #         with open(dest, "wb") as f:
-        #             f.write(r.content)
-        #         print(f"Sauvegarde de :{dest} terminée")
-        #     except IOError as e:
-        #         print(f"Erreur lors de la sauvegarde du fichier : {e}")
-        #         return False
-        #     return r.content
-        # except Exception as e:
-        #     print(f"  Échec PAC : {e}")
-        #
-        # # --- 3) Essai sans proxy du tout ---
-        # try:
-        #     print("→ Tentative sans proxy")
-        #     r = requests.get(url, proxies={"http": None, "https": None}, timeout=timeout)
-        #     r.raise_for_status()
-        #     try:
-        #         with open(dest, "wb") as f:
-        #             f.write(r.content)
-        #         print(f"Sauvegarde de :{dest} terminée")
-        #     except IOError as e:
-        #         print(f"Erreur lors de la sauvegarde du fichier : {e}")
-        #         return False
-        #     return r.content
-        # except Exception as e:
-        #     print(f"  Échec sans proxy : {e}")
-        #
-        # raise Exception("Impossible de télécharger le fichier après toutes les tentatives.")
+        # ************************************************
 
 
     def getplugin_from_xml(self,tmp_xml):
@@ -333,7 +330,6 @@ class InstallerDialog(QDialog):
         for idx, plugin in enumerate(list_plugins, start=1):
             progress.update(idx, f"Téléchargement de : {plugin}")
 
-            # fic_source = f"{REP_GITHUB}/{plugin}.zip"
             download_url = self.dico_plugin[plugin][2]
             fic_source = download_url
 
@@ -427,7 +423,6 @@ class InstallerDialog(QDialog):
                     self.pushButton_tout_rien.setText("Rien")
 
 
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     dlg = InstallerDialog()
@@ -457,7 +452,7 @@ if __name__ == "__main__":
         dlg.dossier_profil = "default"
     else:
         dlg.dossier_profil, ok = QInputDialog.getItem(dlg,"Choisir un profil QGIS","Sélectionnez votre profil QGIS :",rep_profils,0,False)
-        log(f"Le profil sélectionné est : {dlg.dossier_profil}")
+        log(f"Le profil QGIS sélectionné est : {dlg.dossier_profil}")
     if not ok:
         sys.exit(0)
 
@@ -468,6 +463,8 @@ if __name__ == "__main__":
     dlg.initialiser_apres_profil()
     dlg.setWindowFlags(dlg.windowFlags() | Qt.WindowStaysOnTopHint)
     dlg.exec_()
+
+
 
 
 
