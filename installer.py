@@ -20,10 +20,14 @@ import xml.etree.ElementTree as ET
 
 from progressbar import DownloadProgress
 
+# ==== TOUS ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+# ==== SDIS ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_SDIS.xml?nocache=1"
+# ==== COLLECTIVITES ====
 PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
 
+REP_QGIS = "AppData/Roaming/QGIS"
 
 
 PAC_URL = "http://calamarlog.ign.fr/proxy.pac"
@@ -165,7 +169,8 @@ class InstallerDialog(QDialog):
         # récupère le dossier d'installation des plugins dans QGIS
         # dossier utilisateur
         home = Path.home()
-        chemin = os.path.join(home, f"AppData/Roaming/QGIS/QGIS3/profiles/{self.dossier_profil}/python/plugins")
+
+        chemin = os.path.join(home, f"AppData/Roaming/QGIS/{dlg.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
 
         # si le profil est different de "default" il se peut que le dossier "plugins" n'existe pas
         # alors, on le crée
@@ -173,34 +178,12 @@ class InstallerDialog(QDialog):
             os.makedirs(chemin)
 
         if sys.platform.startswith("win"):
-            return os.path.join(home, f"AppData/Roaming/QGIS/QGIS3/profiles/{self.dossier_profil}/python/plugins")
+            return os.path.join(home, f"AppData/Roaming/QGIS/{dlg.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
         elif sys.platform.startswith("darwin"):
-            return os.path.join(home, f"Library/Application Support/QGIS/QGIS3/profiles/{self.dossier_profil}/python/plugins")
+            return os.path.join(home, f"Library/Application Support/QGIS/{dlg.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
         else:
-            return os.path.join(home, f".local/share/QGIS/QGIS3/profiles/{self.dossier_profil}/python/plugins")
+            return os.path.join(home, f".local/share/QGIS/{dlg.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
 
-    # def get_proxy_handler(self):
-    #     http_proxy = os.environ.get('HTTP_PROXY') or os.environ.get('http_proxy')
-    #     https_proxy = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy')
-    #     proxies = {}
-    #
-    #     # Si aucun proxy défini → ne rien renvoyer
-    #     if not http_proxy and not https_proxy:
-    #         return {}
-    #     proxy_to_test = https_proxy or http_proxy
-    #     host, port = proxy_to_test.replace("http://", "").split(":")
-    #     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #     sock.settimeout(1)
-    #     try:
-    #         sock.connect((host, int(port)))
-    #         sock.close()
-    #         proxies["http"] = http_proxy or https_proxy
-    #         proxies["https"] = https_proxy or http_proxy
-    #         print("Proxy détecté et fonctionnel :", proxies)
-    #         return proxies
-    #     except:
-    #         print("Pas de proxy détecté")
-    #         return {}
 
     # téléchargement de : plugins.xml
     def download_file(self,url, dest,timeout = 10):
@@ -432,7 +415,20 @@ if __name__ == "__main__":
         os.remove(FIC_LOG)
     log("Lancement de l'installateur")
 
-    chemin_profils = Path.home() / "AppData"/"Roaming"/"QGIS"/"QGIS3"/"profiles"
+    # choix de la version de qgis (3 ou 4)
+    # toutes les versions 3 partagent les meme profils
+    rep_qgis = os.listdir(Path(Path.home(), REP_QGIS))
+    text = ('<span style="font-weight:bold; color:blue;">Dans quelle version de QGIS souhaitez vous installer les plugins ? :</span><br><br>'
+            "(QGIS3 pour toutes les versions 3.00 à 3.99)<br>"
+            "(QGIS4 pour toutes les versions 4.00 à 4.99)<br>")
+    dlg.dossier_qgis, ok = QInputDialog.getItem(dlg, "Choisir une version de QGIS", text,
+                                                  rep_qgis, 0, False)
+    log(f"La version de QGIS sélectionné est : {dlg.dossier_qgis}")
+    print(f"La version de QGIS sélectionné est : {dlg.dossier_qgis}")
+    if not ok:
+        sys.exit(0)
+
+    chemin_profils = Path.home() / "AppData"/"Roaming"/"QGIS"/dlg.dossier_qgis/"profiles"
     # Affichage dans QMessageBox : convertir en slash pour HTML
     chemin_profils_aff = chemin_profils.as_posix()
     if not os.path.exists(chemin_profils):
@@ -451,7 +447,7 @@ if __name__ == "__main__":
     if len(rep_profils) == 1 and rep_profils[0] == "default":
         dlg.dossier_profil = "default"
     else:
-        dlg.dossier_profil, ok = QInputDialog.getItem(dlg,"Choisir un profil QGIS","Sélectionnez votre profil QGIS :",rep_profils,0,False)
+        dlg.dossier_profil, ok = QInputDialog.getItem(dlg,"Choisir un profil QGIS",'<span style="font-weight:bold; color:blue;">Sélectionnez votre profil d\'installation :</span>',rep_profils,0,False)
         log(f"Le profil QGIS sélectionné est : {dlg.dossier_profil}")
     if not ok:
         sys.exit(0)
