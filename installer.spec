@@ -52,5 +52,6 @@ exe = EXE(
     debug=False,
     strip=False,
     upx=False,        # important pour éviter bugs antivirus
+	version='version.txt',
     console=False      # mettre False quand tout marche
 )

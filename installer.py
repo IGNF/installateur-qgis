@@ -22,11 +22,11 @@ import xml.etree.ElementTree as ET
 from progressbar import DownloadProgress
 
 # ==== TOUS ====
-# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
 # ==== SDIS ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_SDIS.xml?nocache=1"
 # ==== COLLECTIVITES ====
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
 
 REP_QGIS = "AppData/Roaming/QGIS"
 
@@ -41,7 +41,6 @@ COLOR_MAJ = "#d4d400"
 COLOR_NON_INSTALLE = "#ff6e6e"
 
 TITRE = "Installateur de plugins IGN "
-VERSION = "v0.3"
 
 
 def log(message):
@@ -71,7 +70,7 @@ class InstallerDialog(QDialog):
         dlgAProposDe = QDialog()
         loadUi(os.path.dirname(__file__) + "/aproposde.ui", dlgAProposDe)
         dlgAProposDe.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.WindowCloseButtonHint)
-        dlgAProposDe.setWindowTitle(f"{TITRE} {VERSION}")
+        dlgAProposDe.setWindowTitle(f"{TITRE}")
         dlgAProposDe.pushButtonAffichedoc.clicked.connect(self.afficheDoc)
         dlgAProposDe.exec()
 
@@ -114,7 +113,7 @@ class InstallerDialog(QDialog):
             "QHeaderView::section { color: white; background-color: #00a108; font-weight: bold; }")
         self.tablePlugins.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.tablePlugins.setColumnCount(5)
-        self.tablePlugins.setHorizontalHeaderLabels(["Plugins disponibles", "Version disponible","Version installée", "Description","Mise à jour"])
+        self.tablePlugins.setHorizontalHeaderLabels(["Plugins disponibles", "Version disponible","Version installée", "Description","Dernières modifications"])
         self.tablePlugins.setColumnWidth(0, 220)
         self.tablePlugins.setColumnWidth(1, 130)
         self.tablePlugins.setColumnWidth(2, 120)
@@ -127,7 +126,7 @@ class InstallerDialog(QDialog):
         self.tablePlugins.verticalHeader().setDefaultSectionSize(20)
 
         for row, (nom,valeur) in enumerate(self.dico_plugin.items()):
-            version, description,lien = valeur
+            version, description,changelog,lien = valeur
             item_name = QTableWidgetItem(nom)
             item_name.setFlags(item_name.flags() & ~Qt.ItemFlag.ItemIsEditable)
             if nom == PLUGIN_MAITRE or nom == INSTALLATEUR:
@@ -141,11 +140,12 @@ class InstallerDialog(QDialog):
             self.tablePlugins.setItem(row, 0, item_name)
             self.tablePlugins.setItem(row, 1, QTableWidgetItem(str(version)))
             self.tablePlugins.setItem(row, 2, QTableWidgetItem(description))
+            self.tablePlugins.setItem(row, 3, QTableWidgetItem(changelog))
 
             item_version = QTableWidgetItem(version)
             item_version.setFont(font)
             item_version.setFlags(item_version.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.tablePlugins.setItem(row, 1, QTableWidgetItem(item_version))
+            self.tablePlugins.setItem(row, 1, item_version)
 
             version_installe = self.get_version_plugins(nom)
             if version_installe is None:
@@ -162,11 +162,15 @@ class InstallerDialog(QDialog):
 
             item_version_installe.setFont(font)
             item_version_installe.setFlags(item_version_installe.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.tablePlugins.setItem(row, 2, QTableWidgetItem(item_version_installe))
+            self.tablePlugins.setItem(row, 2, item_version_installe)
 
             item_descr = QTableWidgetItem(description)
             item_descr.setFlags(item_descr.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.tablePlugins.setItem(row, 3, QTableWidgetItem(item_descr))
+            self.tablePlugins.setItem(row, 3, item_descr)
+
+            item_changelog = QTableWidgetItem(changelog)
+            item_changelog.setFlags(item_changelog.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.tablePlugins.setItem(row, 4, item_changelog)
 
     def get_rep_plugin_qgis(self):
         # récupère le dossier d'installation des plugins dans QGIS
@@ -246,62 +250,21 @@ class InstallerDialog(QDialog):
         os.startfile(FIC_LOG)
         raise Exception("Impossible de télécharger le fichier après toutes les tentatives.")
 
-
-        # ************************************************
-        print("Téléchargement de :", url)
-        print("Téléchargement vers  :", dest)
-        print("HOST :", requests.utils.urlparse(url).netloc)
-        # self.progress.show()
-        attempts = [
-            ("proxy système (HTTPS_PROXY)", {}),
-            ("proxy.pac", "PAC"),
-            ("sans proxy", {"http": None, "https": None})
-        ]
-        for mode, proxies in attempts:
-            try:
-                print(f"→ Tentative de connexion vers le dépot github avec : {mode}...")
-                if proxies == "PAC":
-                    tldextract.extract = tldextract.TLDExtract(suffix_list_urls=None)
-                    session = PACSession()
-                    r = session.get(url, stream=True, timeout=timeout)
-                else:
-                    r = requests.get(url, stream=True, proxies=proxies, timeout=timeout)
-
-                r.raise_for_status()
-
-                with open(dest, "wb") as f:
-                    # lecture par petits paquets de 8ko
-                    for chunk in r.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                            QCoreApplication.processEvents()
-
-                print(f"Connexion réussie avec : {mode} -> {proxies}")
-                log(f"Connexion réussie avec : {mode} -> {proxies}")
-                log(f"Téléchargement de : {dest} -> terminé\n")
-                return True
-
-            except Exception as e:
-                log(f"Échec connexion {mode}")
-
-        # log(f"Impossible de télécharger {url} après toutes les tentatives.")
-        raise Exception("Impossible de télécharger le fichier (ou plugin) après toutes les tentatives.")
-        # ************************************************
-
-
     def getplugin_from_xml(self,tmp_xml):
         tree = ET.parse(tmp_xml)
         root = tree.getroot()
-        list_tmp = ""
         self.dico_plugin = {}
         # Parcourir les plugins
         for plugin in root.findall("pyqgis_plugin"):
             name = plugin.get("name")
             version = plugin.get("version")
             description = plugin.find("description")
+            changelog = plugin.find("changelog")
+            if changelog is None:
+                changelog = ET.Element("changelog")
+                changelog.text = ""
             download_url = plugin.find("download_url").text
-            self.dico_plugin[name] = [version, description.text,download_url]
-            list_tmp += f"-{name}\n"
+            self.dico_plugin[name] = [version, description.text,changelog.text,download_url]
         return self.dico_plugin
 
 
@@ -312,11 +275,11 @@ class InstallerDialog(QDialog):
     def telecharge_plugins(self,list_plugins):
         rep_installe = self.get_rep_plugin_qgis()
         compt = 0
+        print("TEST1")
         progress = DownloadProgress(self, len(list_plugins))
         for idx, plugin in enumerate(list_plugins, start=1):
             progress.update(idx, f"Téléchargement de : {plugin}")
-
-            download_url = self.dico_plugin[plugin][2]
+            download_url = self.dico_plugin[plugin][3]
             fic_source = download_url
 
             fic_dest = f"{rep_installe}/{plugin}.zip"
@@ -331,6 +294,7 @@ class InstallerDialog(QDialog):
                         shutil.rmtree(rep_plugin, onerror=self.remove_readonly)
                 except Exception as e:
                     print("erreur" , e )
+            print(f"Téléchargement de {plugin} depuis {fic_source} vers {fic_dest}")
             self.download_file(fic_source, fic_dest)
             # Déziper dans le dossier des plugins
             try:
@@ -358,12 +322,12 @@ class InstallerDialog(QDialog):
 
     def on_installe_plugin(self):
         self.list_plugin_installe = []
+        print("TEST2")
         for row in range(self.tablePlugins.rowCount()):
             item = self.tablePlugins.item(row, 0)  # colonne Nom
-            if item.checkState() == Qt.Checked:
+            if item.checkState() == Qt.CheckState.Checked:
                 plugin_name = item.text()
                 self.list_plugin_installe.append(plugin_name)
-
         self.telecharge_plugins(self.list_plugin_installe)
 
         text = ("Installation terminé\n\n - Veuillez redémarrer QGIS pour prendre\n"
@@ -401,18 +365,18 @@ class InstallerDialog(QDialog):
         for row in range(self.tablePlugins.rowCount()):
             item = self.tablePlugins.item(row, 0)  # colonne Nom
             if not self.tablePlugins.item(row, 0).text() == PLUGIN_MAITRE:
-                if item.checkState() == Qt.Checked:
-                    item.setCheckState(Qt.Unchecked)
-                    self.pushButton_tout_rien.setText("Tout")
+                if item.checkState() == Qt.CheckState.Checked:
+                    item.setCheckState(Qt.CheckState.Unchecked)
+                    self.pushButton_tout_rien.setText("Tout sélectionner")
                 else:
-                    item.setCheckState(Qt.Checked)
-                    self.pushButton_tout_rien.setText("Rien")
+                    item.setCheckState(Qt.CheckState.Checked)
+                    self.pushButton_tout_rien.setText("Rien sélectionner")
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     dlg = InstallerDialog()
-    dlg.setWindowTitle(f"{TITRE} {VERSION}")
+    dlg.setWindowTitle(f"{TITRE}")
 
     if os.path.exists(FIC_LOG):
         os.remove(FIC_LOG)
