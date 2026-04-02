@@ -1,12 +1,11 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtCore import QCoreApplication
-from PyQt5.QtWidgets import QProgressDialog
+from PyQt6.QtCore import Qt,QCoreApplication
+from PyQt6.QtWidgets import QProgressDialog
 
 class DownloadProgress:
     def __init__(self, parent, total=0):
         self.progress = QProgressDialog("Téléchargement en cours...", "Annuler", 0, total, parent)
-        self.progress.setWindowModality(Qt.WindowModal)
-        self.progress.setWindowFlags(self.progress.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.progress.setWindowModality(Qt.WindowModality.WindowModal)
+        self.progress.setWindowFlags(self.progress.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
         self.progress.setMinimumDuration(0)  # Affiche immédiatement
         self.progress.setValue(0)
         self.progress.show()

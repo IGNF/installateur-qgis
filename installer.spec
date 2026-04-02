@@ -1,50 +1,47 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 import tldextract
-from PyInstaller.utils.hooks import collect_all
 
-# --- Collecte automatique des modules ---
+# --- fichiers UI ---
 datas = [
     ('installer.ui', '.'),
     ('aproposde.ui', '.')
 ]
+
 binaries = []
-hiddenimports = []
 
-# PyQt5
-tmp = collect_all('PyQt5')
-datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
+# --- imports nécessaires ---
+hiddenimports = [
+    # PyQt6
+    'PyQt6.QtCore',
+    'PyQt6.QtGui',
+    'PyQt6.QtWidgets',
+    'PyQt6.uic',
 
-# requests
-tmp = collect_all('requests')
-datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
+    # réseau
+    'requests',
+    'pypac',
 
-# pypac
-tmp = collect_all('pypac')
-datas += tmp[0]; binaries += tmp[1]; hiddenimports += tmp[2]
+    # divers
+    'progressbar'
+]
 
-# --- AJOUT CRUCIAL : fichier .tld_set_snapshot ---
+# --- fix tldextract ---
 tld_path = os.path.dirname(tldextract.__file__)
 snapshot_file = os.path.join(tld_path, ".tld_set_snapshot")
 datas.append((snapshot_file, "tldextract"))
 
-# --- Analyse ---
+# --- analyse ---
 a = Analysis(
     ['installer.py'],
-    pathex=[],
+    pathex=[os.getcwd()],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
-    noarchive=False,
 )
 
 pyz = PYZ(a.pure)
 
-# --- EXE OneFile ---
 exe = EXE(
     pyz,
     a.scripts,
@@ -54,7 +51,6 @@ exe = EXE(
     name='PluginHub_Installer',
     debug=False,
     strip=False,
-    upx=True,
-    console=False,   # tu veux garder la console ouverte
+    upx=False,        # important pour éviter bugs antivirus
+    console=False      # mettre False quand tout marche
 )
-

@@ -1,1 +1,3 @@
-pyinstaller --clean installer.spec
+python -m PyInstaller --clean installer.spec
+pause
+

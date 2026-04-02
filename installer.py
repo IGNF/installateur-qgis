@@ -9,10 +9,11 @@ import tldextract
 from pathlib import Path
 
 import requests
-from PyQt5.QtCore import Qt, QCoreApplication
-from PyQt5.QtGui import QFont, QBrush, QColor
-from PyQt5.QtWidgets import QApplication, QDialog, QTableWidgetItem, QMessageBox, QTableWidget,QInputDialog
-from PyQt5.uic import loadUi
+from PyQt6.QtCore import Qt, QCoreApplication
+from PyQt6.QtGui import QFont, QBrush, QColor
+from PyQt6.QtWidgets import QApplication, QDialog, QTableWidgetItem, QMessageBox, QInputDialog, \
+    QAbstractItemView
+from PyQt6.uic import loadUi
 
 import tempfile
 import zipfile
@@ -32,13 +33,14 @@ REP_QGIS = "AppData/Roaming/QGIS"
 
 PAC_URL = "http://calamarlog.ign.fr/proxy.pac"
 PLUGIN_MAITRE = "plugin_maitre"
+INSTALLATEUR ="PluginHub_Installer"
 FIC_LOG = "log.txt"
 DOSSIER_A_GARDER = "config_plugin_maitre"
 METADATA_FILE = "metadata.txt"
 COLOR_MAJ = "#d4d400"
 COLOR_NON_INSTALLE = "#ff6e6e"
 
-TITRE = "Installateur de plugin IGN "
+TITRE = "Installateur de plugins IGN "
 VERSION = "v0.3"
 
 
@@ -68,10 +70,10 @@ class InstallerDialog(QDialog):
     def on_a_propos(self):
         dlgAProposDe = QDialog()
         loadUi(os.path.dirname(__file__) + "/aproposde.ui", dlgAProposDe)
-        dlgAProposDe.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.WindowCloseButtonHint)
+        dlgAProposDe.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.WindowCloseButtonHint)
         dlgAProposDe.setWindowTitle(f"{TITRE} {VERSION}")
         dlgAProposDe.pushButtonAffichedoc.clicked.connect(self.afficheDoc)
-        dlgAProposDe.exec_()
+        dlgAProposDe.exec()
 
     def afficheDoc(self):
         if not os.path.isfile(os.path.join(os.path.dirname(__file__), "installateur.pdf")):
@@ -106,17 +108,18 @@ class InstallerDialog(QDialog):
         self.label_non_installe.setStyleSheet(f"background-color: {COLOR_MAJ}")
         self.pushButton_tout_rien.setStyleSheet("font : bold ")
         self.pushButton_installer.setStyleSheet("font : bold ;background-color: #00a108; color: white;")
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.WindowCloseButtonHint)
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.WindowCloseButtonHint)
         # tablewidget
         self.tablePlugins.horizontalHeader().setStyleSheet(
             "QHeaderView::section { color: white; background-color: #00a108; font-weight: bold; }")
-        self.tablePlugins.setSelectionMode(QTableWidget.NoSelection)
-        self.tablePlugins.setColumnCount(4)
-        self.tablePlugins.setHorizontalHeaderLabels(["Plugins disponibles", "Version disponible","Version installée", "Description"])
+        self.tablePlugins.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.tablePlugins.setColumnCount(5)
+        self.tablePlugins.setHorizontalHeaderLabels(["Plugins disponibles", "Version disponible","Version installée", "Description","Mise à jour"])
         self.tablePlugins.setColumnWidth(0, 220)
         self.tablePlugins.setColumnWidth(1, 130)
         self.tablePlugins.setColumnWidth(2, 120)
         self.tablePlugins.setColumnWidth(3, 400)
+        self.tablePlugins.setColumnWidth(4, 400)
         self.tablePlugins.horizontalHeader().setStretchLastSection(True)
         self.tablePlugins.setRowCount(len(self.dico_plugin))
 
@@ -126,12 +129,12 @@ class InstallerDialog(QDialog):
         for row, (nom,valeur) in enumerate(self.dico_plugin.items()):
             version, description,lien = valeur
             item_name = QTableWidgetItem(nom)
-            item_name.setFlags(item_name.flags() & ~Qt.ItemIsEditable)
-            if nom == PLUGIN_MAITRE:
-                item_name.setCheckState(Qt.Checked)
-                item_name.setFlags(item_name.flags() & ~Qt.ItemIsUserCheckable)
+            item_name.setFlags(item_name.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            if nom == PLUGIN_MAITRE or nom == INSTALLATEUR:
+                item_name.setCheckState(Qt.CheckState.Checked)
+                item_name.setFlags(item_name.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
             else:
-                item_name.setCheckState(Qt.Unchecked)
+                item_name.setCheckState(Qt.CheckState.Unchecked)
             font = QFont()
             font.setBold(True)
             item_name.setFont(font)
@@ -141,7 +144,7 @@ class InstallerDialog(QDialog):
 
             item_version = QTableWidgetItem(version)
             item_version.setFont(font)
-            item_version.setFlags(item_version.flags() & ~Qt.ItemIsEditable)
+            item_version.setFlags(item_version.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.tablePlugins.setItem(row, 1, QTableWidgetItem(item_version))
 
             version_installe = self.get_version_plugins(nom)
@@ -158,11 +161,11 @@ class InstallerDialog(QDialog):
                 item_version_installe = QTableWidgetItem(version_installe_text)
 
             item_version_installe.setFont(font)
-            item_version_installe.setFlags(item_version_installe.flags() & ~Qt.ItemIsEditable)
+            item_version_installe.setFlags(item_version_installe.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.tablePlugins.setItem(row, 2, QTableWidgetItem(item_version_installe))
 
             item_descr = QTableWidgetItem(description)
-            item_descr.setFlags(item_descr.flags() & ~Qt.ItemIsEditable)
+            item_descr.setFlags(item_descr.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.tablePlugins.setItem(row, 3, QTableWidgetItem(item_descr))
 
     def get_rep_plugin_qgis(self):
@@ -457,8 +460,8 @@ if __name__ == "__main__":
         QMessageBox.warning(None, "Installateur de plugins", "Impossible de trouver le dossier d'installation des plugins QGIS")
 
     dlg.initialiser_apres_profil()
-    dlg.setWindowFlags(dlg.windowFlags() | Qt.WindowStaysOnTopHint)
-    dlg.exec_()
+    dlg.setWindowFlags(dlg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+    dlg.exec()
 
 
 
