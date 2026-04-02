@@ -33,7 +33,7 @@ REP_QGIS = "AppData/Roaming/QGIS"
 
 PAC_URL = "http://calamarlog.ign.fr/proxy.pac"
 PLUGIN_MAITRE = "plugin_maitre"
-INSTALLATEUR ="PluginHub_Installer"
+INSTALLATEUR = "PluginHub_Installer"
 FIC_LOG = "log.txt"
 DOSSIER_A_GARDER = "config_plugin_maitre"
 METADATA_FILE = "metadata.txt"
@@ -120,16 +120,22 @@ class InstallerDialog(QDialog):
         self.tablePlugins.setColumnWidth(3, 400)
         self.tablePlugins.setColumnWidth(4, 400)
         self.tablePlugins.horizontalHeader().setStretchLastSection(True)
-        self.tablePlugins.setRowCount(len(self.dico_plugin))
+        # self.tablePlugins.setRowCount(len(self.dico_plugin))
 
         self.tablePlugins.verticalHeader().setMinimumSectionSize(1)
         self.tablePlugins.verticalHeader().setDefaultSectionSize(20)
 
-        for row, (nom,valeur) in enumerate(self.dico_plugin.items()):
+        # ligne = 0
+        for nom,valeur in self.dico_plugin.items():
+            # si c'est l'installateur, on ne l'ajoute pas dans la liste,
+            # on l'installe par défaut
+            if INSTALLATEUR in nom:
+                continue
             version, description,changelog,lien = valeur
             item_name = QTableWidgetItem(nom)
             item_name.setFlags(item_name.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            if nom == PLUGIN_MAITRE or nom == INSTALLATEUR:
+
+            if nom == PLUGIN_MAITRE:
                 item_name.setCheckState(Qt.CheckState.Checked)
                 item_name.setFlags(item_name.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
             else:
@@ -137,15 +143,17 @@ class InstallerDialog(QDialog):
             font = QFont()
             font.setBold(True)
             item_name.setFont(font)
-            self.tablePlugins.setItem(row, 0, item_name)
-            self.tablePlugins.setItem(row, 1, QTableWidgetItem(str(version)))
-            self.tablePlugins.setItem(row, 2, QTableWidgetItem(description))
-            self.tablePlugins.setItem(row, 3, QTableWidgetItem(changelog))
+            ligne = self.tablePlugins.rowCount()
+            self.tablePlugins.insertRow(ligne)
+            self.tablePlugins.setItem(ligne, 0, item_name)
+            self.tablePlugins.setItem(ligne, 1, QTableWidgetItem(str(version)))
+            self.tablePlugins.setItem(ligne, 2, QTableWidgetItem(description))
+            self.tablePlugins.setItem(ligne, 3, QTableWidgetItem(changelog))
 
             item_version = QTableWidgetItem(version)
             item_version.setFont(font)
             item_version.setFlags(item_version.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.tablePlugins.setItem(row, 1, item_version)
+            self.tablePlugins.setItem(ligne, 1, item_version)
 
             version_installe = self.get_version_plugins(nom)
             if version_installe is None:
@@ -162,15 +170,16 @@ class InstallerDialog(QDialog):
 
             item_version_installe.setFont(font)
             item_version_installe.setFlags(item_version_installe.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.tablePlugins.setItem(row, 2, item_version_installe)
+            self.tablePlugins.setItem(ligne, 2, item_version_installe)
 
             item_descr = QTableWidgetItem(description)
             item_descr.setFlags(item_descr.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.tablePlugins.setItem(row, 3, item_descr)
+            self.tablePlugins.setItem(ligne, 3, item_descr)
 
             item_changelog = QTableWidgetItem(changelog)
             item_changelog.setFlags(item_changelog.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.tablePlugins.setItem(row, 4, item_changelog)
+            self.tablePlugins.setItem(ligne, 4, item_changelog)
+            # ligne += 1
 
     def get_rep_plugin_qgis(self):
         # récupère le dossier d'installation des plugins dans QGIS
@@ -246,7 +255,7 @@ class InstallerDialog(QDialog):
                 compt += 1
 
         log(f"Impossible de télécharger {url} après toutes les tentatives.")
-        QMessageBox.critical(None, "erreur", f"Impossible de télécharger {url} après toutes les tentatives.")
+        QMessageBox.critical(self, "erreur", f"Impossible de télécharger:\n\t {url}.")
         os.startfile(FIC_LOG)
         raise Exception("Impossible de télécharger le fichier après toutes les tentatives.")
 
@@ -275,7 +284,6 @@ class InstallerDialog(QDialog):
     def telecharge_plugins(self,list_plugins):
         rep_installe = self.get_rep_plugin_qgis()
         compt = 0
-        print("TEST1")
         progress = DownloadProgress(self, len(list_plugins))
         for idx, plugin in enumerate(list_plugins, start=1):
             progress.update(idx, f"Téléchargement de : {plugin}")
@@ -322,12 +330,15 @@ class InstallerDialog(QDialog):
 
     def on_installe_plugin(self):
         self.list_plugin_installe = []
-        print("TEST2")
         for row in range(self.tablePlugins.rowCount()):
             item = self.tablePlugins.item(row, 0)  # colonne Nom
             if item.checkState() == Qt.CheckState.Checked:
                 plugin_name = item.text()
                 self.list_plugin_installe.append(plugin_name)
+        # on ajoute l'installateur dans la liste des plugins à installer
+        # car il n'est pas dans la liste
+        if INSTALLATEUR in self.dico_plugin:
+            self.list_plugin_installe.append(INSTALLATEUR)
         self.telecharge_plugins(self.list_plugin_installe)
 
         text = ("Installation terminé\n\n - Veuillez redémarrer QGIS pour prendre\n"
