@@ -22,9 +22,9 @@ import xml.etree.ElementTree as ET
 from progressbar import DownloadProgress
 
 # ==== TOUS ====
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
 # ==== SDIS ====
-# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_SDIS.xml?nocache=1"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_SDIS.xml?nocache=1"
 # ==== COLLECTIVITES ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
 
@@ -335,10 +335,11 @@ class InstallerDialog(QDialog):
             if item.checkState() == Qt.CheckState.Checked:
                 plugin_name = item.text()
                 self.list_plugin_installe.append(plugin_name)
-        # on ajoute l'installateur dans la liste des plugins à installer
+        # on ajoute l'installateur dans la liste des plugins à installer,
         # car il n'est pas dans la liste
-        if INSTALLATEUR in self.dico_plugin:
-            self.list_plugin_installe.append(INSTALLATEUR)
+        for plugin in self.dico_plugin:
+            if INSTALLATEUR in plugin:
+                self.list_plugin_installe.append(plugin)
         self.telecharge_plugins(self.list_plugin_installe)
 
         text = ("Installation terminé\n\n - Veuillez redémarrer QGIS pour prendre\n"
