@@ -22,9 +22,9 @@ import xml.etree.ElementTree as ET
 from progressbar import DownloadProgress
 
 # ==== TOUS ====
-# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
 # ==== SDIS ====
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_SDIS.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_SDIS.xml?nocache=1"
 # ==== COLLECTIVITES ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
 
@@ -40,7 +40,7 @@ METADATA_FILE = "metadata.txt"
 COLOR_MAJ = "#d4d400"
 COLOR_NON_INSTALLE = "#ff6e6e"
 
-TITRE = "Installateur de plugins IGN "
+TITRE = f"{INSTALLATEUR} : Installateur de plugins IGN"
 
 
 def log(message):
@@ -59,6 +59,9 @@ class InstallerDialog(QDialog):
 
         self.dossier_profil = None
         self.dico_plugin = {}
+        # aucun plugin n’est coché.
+        self.ischeck = False
+
         # Charger le fichier .ui dans cette instance
         loadUi(self.resource_path("installer.ui"), self)
 
@@ -106,7 +109,7 @@ class InstallerDialog(QDialog):
     def inti_dialog(self):
         self.label_non_installe.setStyleSheet(f"background-color: {COLOR_MAJ}")
         self.pushButton_tout_rien.setStyleSheet("font : bold ")
-        self.pushButton_installer.setStyleSheet("font : bold ;background-color: #00a108; color: white;")
+        self.pushButton_installer.setStyleSheet("font : bold ;background-color: #00a108; color: black;")
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.WindowCloseButtonHint)
         # tablewidget
         self.tablePlugins.horizontalHeader().setStyleSheet(
@@ -284,7 +287,7 @@ class InstallerDialog(QDialog):
     def telecharge_plugins(self,list_plugins):
         rep_installe = self.get_rep_plugin_qgis()
         compt = 0
-        progress = DownloadProgress(self, len(list_plugins))
+        progress = DownloadProgress(self, len(list_plugins)+1)
         for idx, plugin in enumerate(list_plugins, start=1):
             progress.update(idx, f"Téléchargement de : {plugin}")
             download_url = self.dico_plugin[plugin][3]
@@ -314,7 +317,7 @@ class InstallerDialog(QDialog):
             # Supprimer le fichier zip
             os.remove(fic_dest)
             compt += 1
-        progress.close()
+        return progress
 
     # suppression du dossier PLUGIN_MAITRE
     # c'est spécifique, car on veut garder le sous dossier : DOSSIER_A_GARDER (config des plugins)
@@ -340,28 +343,40 @@ class InstallerDialog(QDialog):
         for plugin in self.dico_plugin:
             if INSTALLATEUR in plugin:
                 self.list_plugin_installe.append(plugin)
-        self.telecharge_plugins(self.list_plugin_installe)
-
-        text = ("Installation terminé\n\n - Veuillez redémarrer QGIS pour prendre\n"
-                "en compte les nouveaux plugins\n"
-                " - Exécuter le 'plugin maitre' pour configurer les plugins")
-        QMessageBox.information(self, "Installateur de plugins", text)
+        progress = self.telecharge_plugins(self.list_plugin_installe)
+        progress.setlabel("Finalisation de l'installation")
 
         # Mettre à jour uniquement les versions installées et la couleur
-        for row, (nom, valeur) in enumerate(self.dico_plugin.items()):
+        for row in range(self.tablePlugins.rowCount()):
+            nom = self.tablePlugins.item(row, 0).text()
+            valeur = self.dico_plugin.get(nom)
+            if not valeur:
+                continue
             version = valeur[0]
             version_installe = self.get_version_plugins(nom)
-            item_version_installe = self.tablePlugins.item(row, 2)  # colonne "Version installée"
+            item_version_installe = self.tablePlugins.item(row, 2)
+            if item_version_installe is None:
+                continue
             if version_installe is None:
-                version_installe_text = "Non installé"
-                item_version_installe.setText(version_installe_text)
+                item_version_installe.setText("Non installé")
                 item_version_installe.setBackground(QBrush(QColor(COLOR_NON_INSTALLE)))
             elif version_installe != version:
                 item_version_installe.setText(version_installe)
                 item_version_installe.setBackground(QBrush(QColor(COLOR_MAJ)))
             else:
                 item_version_installe.setText(version_installe)
-                item_version_installe.setBackground(QBrush(Qt.white))
+                item_version_installe.setBackground(QBrush(Qt.GlobalColor.white))
+
+
+
+        text = ("Installation terminé\n\n - Veuillez redémarrer QGIS pour prendre\n"
+                "en compte les nouveaux plugins\n"
+                " - Exécuter le 'plugin maitre' pour configurer les plugins")
+        QMessageBox.information(self, "Installateur de plugins", text)
+
+        progress.update(progress.getMaximum(),"Finalisation de l'installation")
+
+
 
     def get_version_plugins(self,plugin_name):
         rep_plugin_qgis = self.get_rep_plugin_qgis()
@@ -374,15 +389,19 @@ class InstallerDialog(QDialog):
         return None
 
     def on_tout_rien(self):
-        for row in range(self.tablePlugins.rowCount()):
-            item = self.tablePlugins.item(row, 0)  # colonne Nom
-            if not self.tablePlugins.item(row, 0).text() == PLUGIN_MAITRE:
-                if item.checkState() == Qt.CheckState.Checked:
-                    item.setCheckState(Qt.CheckState.Unchecked)
-                    self.pushButton_tout_rien.setText("Tout sélectionner")
-                else:
-                    item.setCheckState(Qt.CheckState.Checked)
-                    self.pushButton_tout_rien.setText("Rien sélectionner")
+        if self.ischeck:
+            for row in range(self.tablePlugins.rowCount()):
+                item = self.tablePlugins.item(row, 0)  # colonne Nom
+                if self.tablePlugins.item(row, 0).text() != PLUGIN_MAITRE:
+                        item.setCheckState(Qt.CheckState.Unchecked)
+                        self.pushButton_tout_rien.setText("Tout sélectionner")
+                        self.ischeck = False
+        else:
+            for row in range(self.tablePlugins.rowCount()):
+                item = self.tablePlugins.item(row, 0)  # colonne Nom
+                item.setCheckState(Qt.CheckState.Checked)
+                self.pushButton_tout_rien.setText("Rien sélectionner")
+                self.ischeck = True
 
 
 if __name__ == "__main__":
