@@ -20,6 +20,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 from progressbar import DownloadProgress
+from urllib.parse import urlparse;
 
 # ==== TOUS ====
 PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
@@ -27,14 +28,16 @@ PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugin
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_SDIS.xml?nocache=1"
 # ==== COLLECTIVITES ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
+# ==== TEST ====
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_test.xml?nocache=1"
 
 REP_QGIS = "AppData/Roaming/QGIS"
 
-
 PAC_URL = "http://calamarlog.ign.fr/proxy.pac"
 PLUGIN_MAITRE = "plugin_maitre"
-INSTALLATEUR = "PluginHub_Installer"
-FIC_LOG = "log.txt"
+INSTALLATEUR = "PluginIGN_Installer"
+UPDATE_EXE = "update"
+FIC_LOG = "log_installateur.txt"
 DOSSIER_A_GARDER = "config_plugin_maitre"
 METADATA_FILE = "metadata.txt"
 COLOR_MAJ = "#d4d400"
@@ -43,13 +46,14 @@ COLOR_NON_INSTALLE = "#ff6e6e"
 TITRE = f"{INSTALLATEUR} : Installateur de plugins IGN"
 
 
-def log(message):
+def log(message,reset=False):
     """
     Écrit un message dans le fichier de log avec un horodatage.
     Le fichier est ouvert en mode append pour ne pas écraser les données.
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(FIC_LOG, "a", encoding="utf-8") as f:
+    mode = "w" if reset else "a"  # "w" pour écraser, "a" pour ajouter
+    with open(FIC_LOG, mode, encoding="utf-8") as f:
         f.write(f"[{timestamp}] {message}\n")
 
 
@@ -132,7 +136,7 @@ class InstallerDialog(QDialog):
         for nom,valeur in self.dico_plugin.items():
             # si c'est l'installateur, on ne l'ajoute pas dans la liste,
             # on l'installe par défaut
-            if INSTALLATEUR in nom:
+            if INSTALLATEUR in nom or UPDATE_EXE in nom:
                 continue
             version, description,changelog,lien = valeur
             item_name = QTableWidgetItem(nom)
@@ -213,9 +217,7 @@ class InstallerDialog(QDialog):
             3) Sans proxy
             """
 
-        print("Téléchargement de :", url)
-        print("Téléchargement vers :", dest)
-        log(f"Téléchargement de :{url}")
+        log(f"Téléchargement de :{url} vers {dest}")
 
         attempts = [
             ("proxy système (env)", "ENV"),
@@ -272,6 +274,7 @@ class InstallerDialog(QDialog):
             version = plugin.get("version")
             description = plugin.find("description")
             changelog = plugin.find("changelog")
+            log(f"Plugin trouvé dans le xml : {name} version {version}")
             if changelog is None:
                 changelog = ET.Element("changelog")
                 changelog.text = ""
@@ -305,16 +308,24 @@ class InstallerDialog(QDialog):
                         shutil.rmtree(rep_plugin, onerror=self.remove_readonly)
                 except Exception as e:
                     print("erreur" , e )
-            print(f"Téléchargement de {plugin} depuis {fic_source} vers {fic_dest}")
             self.download_file(fic_source, fic_dest)
             # Déziper dans le dossier des plugins
             try:
                 with zipfile.ZipFile(fic_dest, 'r') as zip_ref:
                     zip_ref.extractall(rep_installe)
+                    log(f"dezip de : {fic_dest}")
             except zipfile.BadZipFile:
-                log(f"zip corrompu : {fic_dest}")
-                pass
+                log(f"ZIP corrompu : {fic_dest}")
+
+            except FileNotFoundError:
+                log(f"Fichier introuvable : {fic_dest}")
+            except PermissionError:
+                log(f"Permission refusée : {fic_dest}")
+            except Exception as e:
+                log(f"Erreur dézip : {e}")
+
             # Supprimer le fichier zip
+            log(f"Suppression du fichier zip : {fic_dest}")
             os.remove(fic_dest)
             compt += 1
         return progress
@@ -341,7 +352,7 @@ class InstallerDialog(QDialog):
         # on ajoute l'installateur dans la liste des plugins à installer,
         # car il n'est pas dans la liste
         for plugin in self.dico_plugin:
-            if INSTALLATEUR in plugin:
+            if INSTALLATEUR in plugin or UPDATE_EXE in plugin:
                 self.list_plugin_installe.append(plugin)
         progress = self.telecharge_plugins(self.list_plugin_installe)
         progress.setlabel("Finalisation de l'installation")
@@ -367,8 +378,7 @@ class InstallerDialog(QDialog):
                 item_version_installe.setText(version_installe)
                 item_version_installe.setBackground(QBrush(Qt.GlobalColor.white))
 
-
-
+        log("Installation terminée")
         text = ("Installation terminé\n\n - Veuillez redémarrer QGIS pour prendre\n"
                 "en compte les nouveaux plugins\n"
                 " - Exécuter le 'plugin maitre' pour configurer les plugins")
@@ -408,10 +418,10 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     dlg = InstallerDialog()
     dlg.setWindowTitle(f"{TITRE}")
+    log("Lancement de l'installateur",reset=True)
 
-    if os.path.exists(FIC_LOG):
-        os.remove(FIC_LOG)
-    log("Lancement de l'installateur")
+    file_xml = os.path.basename(urlparse(PLUGINS_XML_GITHUB).path)
+    dlg.label_profil.setText(f"<span style=\"font-weight:bold; color:blue;\">Profil d'installation : {file_xml}</span>")
 
     # choix de la version de qgis (3 ou 4)
     # toutes les versions 3 partagent les meme profils
@@ -422,7 +432,6 @@ if __name__ == "__main__":
     dlg.dossier_qgis, ok = QInputDialog.getItem(dlg, "Choisir une version de QGIS", text,
                                                   rep_qgis, 0, False)
     log(f"La version de QGIS sélectionné est : {dlg.dossier_qgis}")
-    print(f"La version de QGIS sélectionné est : {dlg.dossier_qgis}")
     if not ok:
         sys.exit(0)
 

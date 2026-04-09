@@ -48,7 +48,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='PluginHub_Installer',
+    name='PluginIGN_Installer',
     debug=False,
     strip=False,
     upx=False,        # important pour éviter bugs antivirus
