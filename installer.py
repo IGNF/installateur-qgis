@@ -23,9 +23,9 @@ from progressbar import DownloadProgress
 from urllib.parse import urlparse;
 
 # ==== TOUS ====
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
 # ==== SDIS ====
-# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_SDIS.xml?nocache=1"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_sdis.xml?nocache=1"
 # ==== COLLECTIVITES ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
 # ==== TEST ====
@@ -425,6 +425,12 @@ if __name__ == "__main__":
 
     # choix de la version de qgis (3 ou 4)
     # toutes les versions 3 partagent les meme profils
+    path_qgis = Path(Path.home(), REP_QGIS)
+    if not path_qgis.exists():
+        QMessageBox.warning(None,"Avertissement",f"<b>Avertissement :</b><br><br>L'installation de QGIS n'a pas été trouvée.<br>Le répertoire  :<br><br><code>{path_qgis.as_posix()}</code><br><br>n'existe pas.")
+        log(f"Le répertoire de QGIS : {path_qgis.as_posix()} -> n'existe pas.")
+        sys.exit(1)
+
     rep_qgis = os.listdir(Path(Path.home(), REP_QGIS))
     text = ('<span style="font-weight:bold; color:blue;">Dans quelle version de QGIS souhaitez vous installer les plugins ? :</span><br><br>'
             "(QGIS3 pour toutes les versions 3.00 à 3.99)<br>"

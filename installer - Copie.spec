@@ -1,38 +1,31 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 import tldextract
-import PyQt6
 
 # --- fichiers UI ---
 datas = [
     ('installer.ui', '.'),
     ('aproposde.ui', '.'),
-    ('installateur.pdf', '.')
+	('installateur.pdf', '.')
 ]
 
 binaries = []
 
-# =========================
-# PyQt6 MINIMAL (IMPORTANT)
-# =========================
-
-qt_dir = os.path.dirname(PyQt6.__file__)
-
-# DLL Qt essentielles détectées automatiquement par PyInstaller
+# --- imports nécessaires ---
 hiddenimports = [
+    # PyQt6
     'PyQt6.QtCore',
     'PyQt6.QtGui',
     'PyQt6.QtWidgets',
     'PyQt6.uic',
 
+    # réseau
     'requests',
     'pypac',
+
+    # divers
     'progressbar'
 ]
-
-# --- plugins Qt MINIMUM obligatoire ---
-platforms_path = os.path.join(qt_dir, "Qt6", "plugins", "platforms")
-datas.append((platforms_path, "platforms"))
 
 # --- fix tldextract ---
 tld_path = os.path.dirname(tldextract.__file__)
@@ -59,7 +52,7 @@ exe = EXE(
     name='PluginIGN_Installer',
     debug=False,
     strip=False,
-    upx=False,
-    version='version.txt',
-    console=False
+    upx=False,        # important pour éviter bugs antivirus
+	version='version.txt',
+    console=False      # mettre False quand tout marche
 )
