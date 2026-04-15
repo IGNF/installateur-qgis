@@ -23,9 +23,9 @@ from progressbar import DownloadProgress
 from urllib.parse import urlparse;
 
 # ==== TOUS ====
-# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
 # ==== SDIS ====
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_sdis.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_sdis.xml?nocache=1"
 # ==== COLLECTIVITES ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
 # ==== TEST ====
@@ -40,7 +40,7 @@ UPDATE_EXE = "update"
 FIC_LOG = "log_installateur.txt"
 DOSSIER_A_GARDER = "config_plugin_maitre"
 METADATA_FILE = "metadata.txt"
-COLOR_MAJ = "#d4d400"
+COLOR_MAJ = "#FFF176"
 COLOR_NON_INSTALLE = "#ff6e6e"
 
 TITRE = f"{INSTALLATEUR} : Installateur de plugins IGN"
@@ -112,8 +112,10 @@ class InstallerDialog(QDialog):
 
     def inti_dialog(self):
         self.label_non_installe.setStyleSheet(f"background-color: {COLOR_MAJ}")
-        self.pushButton_tout_rien.setStyleSheet("font : bold ")
-        self.pushButton_installer.setStyleSheet("font : bold ;background-color: #00a108; color: black;")
+        self.pushButton_tout_rien.setStyleSheet("font : bold ;background-color: #00b909; color: black;")
+        self.pushButton_installer.setStyleSheet("font : bold ;background-color: #00b909; color: black;")
+        self.pushButtonApropos.setStyleSheet("font : bold ;background-color: #00e70b; color: black;")
+
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.WindowCloseButtonHint)
         # tablewidget
         self.tablePlugins.horizontalHeader().setStyleSheet(
@@ -127,12 +129,13 @@ class InstallerDialog(QDialog):
         self.tablePlugins.setColumnWidth(3, 400)
         self.tablePlugins.setColumnWidth(4, 400)
         self.tablePlugins.horizontalHeader().setStretchLastSection(True)
-        # self.tablePlugins.setRowCount(len(self.dico_plugin))
 
         self.tablePlugins.verticalHeader().setMinimumSectionSize(1)
         self.tablePlugins.verticalHeader().setDefaultSectionSize(20)
 
-        # ligne = 0
+        # tablewidget info
+        self.init_tablewidget_info()
+
         for nom,valeur in self.dico_plugin.items():
             # si c'est l'installateur, on ne l'ajoute pas dans la liste,
             # on l'installe par défaut
@@ -186,7 +189,61 @@ class InstallerDialog(QDialog):
             item_changelog = QTableWidgetItem(changelog)
             item_changelog.setFlags(item_changelog.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.tablePlugins.setItem(ligne, 4, item_changelog)
-            # ligne += 1
+
+    def init_tablewidget_info(self):
+        self.tableWidget_info.setColumnCount(2)
+        self.tableWidget_info.horizontalHeader().setVisible(False)
+        self.tableWidget_info.verticalHeader().setVisible(False)
+        self.tableWidget_info.setShowGrid(False)
+
+        file_xml = os.path.basename(urlparse(PLUGINS_XML_GITHUB).path)
+
+        self.tableWidget_info.setRowCount(3)
+
+        données = [
+            ("version de QGIS", f": {dlg.dossier_qgis}"),
+            ("profil utilisateur", f": {dlg.dossier_profil}"),
+            ("xml des plugins", f": {file_xml}")
+        ]
+        font = QFont()
+        font.setBold(True)
+        for ligne , (propriete, valeur) in enumerate(données):
+            item_propriete = QTableWidgetItem(propriete)
+            item_propriete.setFlags(item_propriete.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            item_propriete.setFont(font)
+            self.tableWidget_info.setItem(ligne, 0, item_propriete)
+            item_valeur = QTableWidgetItem(valeur)
+            item_valeur.setFlags(item_valeur.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            # item_valeur.setFont(font)
+            self.tableWidget_info.setItem(ligne, 1, item_valeur)
+
+        self.tableWidget_info.resizeColumnsToContents()
+        self.tableWidget_info.resizeRowsToContents()
+        return
+
+        font = QFont()
+        font.setBold(True)
+
+        # self.tableWidget_info.setHorizontalHeaderLabels(["Propriété", "Valeur"])
+        self.tableWidget_info.setRowCount(3)
+        item = QTableWidgetItem("version de QGIS")
+        self.tableWidget_info.setItem(0, 0, item)
+        item = QTableWidgetItem(f": {dlg.dossier_qgis}")
+        item.setFont(font)
+        self.tableWidget_info.setItem(0, 1, item)
+        item = QTableWidgetItem("profil de QGIS")
+        self.tableWidget_info.setItem(1, 0, item)
+        item = QTableWidgetItem(f": {dlg.dossier_profil}")
+        item.setFont(font)
+        self.tableWidget_info.setItem(1, 1, item)
+        item = QTableWidgetItem("xml des plugins")
+        self.tableWidget_info.setItem(2, 0, item)
+        item = QTableWidgetItem(f": {file_xml}")
+        item.setFont(font)
+        self.tableWidget_info.setItem(2, 1, item)
+
+        self.tableWidget_info.resizeColumnsToContents()
+        self.tableWidget_info.resizeRowsToContents()
 
     def get_rep_plugin_qgis(self):
         # récupère le dossier d'installation des plugins dans QGIS
@@ -227,8 +284,6 @@ class InstallerDialog(QDialog):
         compt = 1
         for mode, proxy_mode in attempts:
             try:
-                print(f"→ Tentative avec : {mode}")
-
                 if proxy_mode == "ENV":
                     r = requests.get(url, stream=True, timeout=timeout)
 
@@ -250,12 +305,10 @@ class InstallerDialog(QDialog):
                             f.write(chunk)
                             QCoreApplication.processEvents()
 
-                print(f"Connexion réussie avec : {mode}")
                 log(f"Connexion réussie avec : {mode}")
                 return True
 
             except Exception as e:
-                print(f"Échec avec {mode} : {e}")
                 log(f"Tentative connexion {compt}/3 : Échec {mode}")
                 compt += 1
 
@@ -419,9 +472,6 @@ if __name__ == "__main__":
     dlg = InstallerDialog()
     dlg.setWindowTitle(f"{TITRE}")
     log("Lancement de l'installateur",reset=True)
-
-    file_xml = os.path.basename(urlparse(PLUGINS_XML_GITHUB).path)
-    dlg.label_profil.setText(f"<span style=\"font-weight:bold; color:blue;\">Profil d'installation : {file_xml}</span>")
 
     # choix de la version de qgis (3 ou 4)
     # toutes les versions 3 partagent les meme profils
