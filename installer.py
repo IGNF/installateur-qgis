@@ -1,6 +1,7 @@
 import os
 import shutil
 import stat
+import subprocess
 import sys
 from datetime import datetime
 
@@ -23,20 +24,19 @@ from progressbar import DownloadProgress
 from urllib.parse import urlparse;
 
 # ==== TOUS ====
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
 # ==== SDIS ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_sdis.xml?nocache=1"
 # ==== COLLECTIVITES ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
 # ==== TEST ====
-# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_test.xml?nocache=1"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_test.xml?nocache=1"
 
 REP_QGIS = "AppData/Roaming/QGIS"
 
 PAC_URL = "http://calamarlog.ign.fr/proxy.pac"
 PLUGIN_MAITRE = "plugin_maitre"
 INSTALLATEUR = "PluginIGN_Installer"
-UPDATE_EXE = "update"
 FIC_LOG = "log_installateur.txt"
 DOSSIER_A_GARDER = "config_plugin_maitre"
 METADATA_FILE = "metadata.txt"
@@ -62,7 +62,7 @@ class InstallerDialog(QDialog):
         super().__init__()
 
         self.dossier_profil = None
-        self.dico_plugin = {}
+        self.dico_plugin_from_xml = {}
         # aucun plugin n’est coché.
         self.ischeck = False
 
@@ -93,13 +93,13 @@ class InstallerDialog(QDialog):
 
         progress = DownloadProgress(self, 1)
         progress.update(1, "Connexion au dépot ...")
-        if not self.download_file(PLUGINS_XML_GITHUB, tmp_xml):
-            log("Impossible de télécharger plugins.xml")
-            raise Exception("Impossible de télécharger plugins.xml")
-        progress.close()
-
-        self.getplugin_from_xml(tmp_xml)
-        self.inti_dialog()
+        if self.download_file(PLUGINS_XML_GITHUB, tmp_xml):
+            self.getplugin_from_xml(tmp_xml)
+            self.inti_dialog()
+            return True
+        else:
+            progress.close()
+            return False
 
     def resource_path(self,relative_path):
         """Permet de trouver le chemin correct du fichier .ui, que ce soit en Python ou en exe PyInstaller"""
@@ -136,57 +136,58 @@ class InstallerDialog(QDialog):
         # tablewidget info
         self.init_tablewidget_info()
 
-        for nom,valeur in self.dico_plugin.items():
+        for nom,valeur in self.dico_plugin_from_xml.items():
             # si c'est l'installateur, on ne l'ajoute pas dans la liste,
             # on l'installe par défaut
-            if INSTALLATEUR in nom or UPDATE_EXE in nom:
+            if INSTALLATEUR in nom:
                 continue
-            version, description,changelog,lien = valeur
+            version = valeur["version"]
+            description = valeur["description"]
+            changelog = valeur["changelog"]
+            version_installe = self.get_version_plugins(nom)
+
+            ligne = self.tablePlugins.rowCount()
+            self.tablePlugins.insertRow(ligne)
+
             item_name = QTableWidgetItem(nom)
-            item_name.setFlags(item_name.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            item_version_dispo = QTableWidgetItem(version)
+            item_version_installe = QTableWidgetItem(version_installe)
+            item_descr = QTableWidgetItem(description)
+            item_changelog = QTableWidgetItem(changelog)
 
             if nom == PLUGIN_MAITRE:
                 item_name.setCheckState(Qt.CheckState.Checked)
                 item_name.setFlags(item_name.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
             else:
                 item_name.setCheckState(Qt.CheckState.Unchecked)
-            font = QFont()
-            font.setBold(True)
-            item_name.setFont(font)
-            ligne = self.tablePlugins.rowCount()
-            self.tablePlugins.insertRow(ligne)
-            self.tablePlugins.setItem(ligne, 0, item_name)
-            self.tablePlugins.setItem(ligne, 1, QTableWidgetItem(str(version)))
-            self.tablePlugins.setItem(ligne, 2, QTableWidgetItem(description))
-            self.tablePlugins.setItem(ligne, 3, QTableWidgetItem(changelog))
 
-            item_version = QTableWidgetItem(version)
-            item_version.setFont(font)
-            item_version.setFlags(item_version.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.tablePlugins.setItem(ligne, 1, item_version)
-
-            version_installe = self.get_version_plugins(nom)
             if version_installe is None:
-                version_installe_text = "Non installé"
-                item_version_installe = QTableWidgetItem(version_installe_text)
+                item_version_installe.setText("Non installé")
                 item_version_installe.setBackground(QBrush(QColor(COLOR_NON_INSTALLE)))
             elif version_installe != version:
-                version_installe_text = version_installe
-                item_version_installe = QTableWidgetItem(version_installe_text)
-                item_version_installe.setBackground(QBrush(QColor(COLOR_MAJ)))
+                item_name.setCheckState(Qt.CheckState.Checked)
+                item_version_dispo.setBackground(QBrush(QColor(COLOR_MAJ)))
             else:
-                version_installe_text = version_installe
-                item_version_installe = QTableWidgetItem(version_installe_text)
+                item_version_installe.setText(version_installe)
+
+            font = QFont()
+            font.setBold(True)
+
+            item_name.setFont(font)
+            item_name.setFlags(item_name.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.tablePlugins.setItem(ligne, 0, item_name)
+
+            item_version_dispo.setFont(font)
+            item_version_dispo.setFlags(item_version_dispo.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.tablePlugins.setItem(ligne, 1, item_version_dispo)
 
             item_version_installe.setFont(font)
             item_version_installe.setFlags(item_version_installe.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.tablePlugins.setItem(ligne, 2, item_version_installe)
 
-            item_descr = QTableWidgetItem(description)
             item_descr.setFlags(item_descr.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.tablePlugins.setItem(ligne, 3, item_descr)
 
-            item_changelog = QTableWidgetItem(changelog)
             item_changelog.setFlags(item_changelog.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.tablePlugins.setItem(ligne, 4, item_changelog)
 
@@ -200,14 +201,14 @@ class InstallerDialog(QDialog):
 
         self.tableWidget_info.setRowCount(3)
 
-        données = [
-            ("version de QGIS", f": {dlg.dossier_qgis}"),
-            ("profil utilisateur", f": {dlg.dossier_profil}"),
+        donnees = [
+            ("version de QGIS", f": {self.dossier_qgis}"),
+            ("profil utilisateur", f": {self.dossier_profil}"),
             ("xml des plugins", f": {file_xml}")
         ]
         font = QFont()
         font.setBold(True)
-        for ligne , (propriete, valeur) in enumerate(données):
+        for ligne , (propriete, valeur) in enumerate(donnees):
             item_propriete = QTableWidgetItem(propriete)
             item_propriete.setFlags(item_propriete.flags() & ~Qt.ItemFlag.ItemIsEditable)
             item_propriete.setFont(font)
@@ -219,38 +220,13 @@ class InstallerDialog(QDialog):
 
         self.tableWidget_info.resizeColumnsToContents()
         self.tableWidget_info.resizeRowsToContents()
-        return
-
-        font = QFont()
-        font.setBold(True)
-
-        # self.tableWidget_info.setHorizontalHeaderLabels(["Propriété", "Valeur"])
-        self.tableWidget_info.setRowCount(3)
-        item = QTableWidgetItem("version de QGIS")
-        self.tableWidget_info.setItem(0, 0, item)
-        item = QTableWidgetItem(f": {dlg.dossier_qgis}")
-        item.setFont(font)
-        self.tableWidget_info.setItem(0, 1, item)
-        item = QTableWidgetItem("profil de QGIS")
-        self.tableWidget_info.setItem(1, 0, item)
-        item = QTableWidgetItem(f": {dlg.dossier_profil}")
-        item.setFont(font)
-        self.tableWidget_info.setItem(1, 1, item)
-        item = QTableWidgetItem("xml des plugins")
-        self.tableWidget_info.setItem(2, 0, item)
-        item = QTableWidgetItem(f": {file_xml}")
-        item.setFont(font)
-        self.tableWidget_info.setItem(2, 1, item)
-
-        self.tableWidget_info.resizeColumnsToContents()
-        self.tableWidget_info.resizeRowsToContents()
 
     def get_rep_plugin_qgis(self):
         # récupère le dossier d'installation des plugins dans QGIS
         # dossier utilisateur
         home = Path.home()
 
-        chemin = os.path.join(home, f"AppData/Roaming/QGIS/{dlg.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
+        chemin = os.path.join(home, f"AppData/Roaming/QGIS/{self.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
 
         # si le profil est different de "default" il se peut que le dossier "plugins" n'existe pas
         # alors, on le crée
@@ -258,11 +234,11 @@ class InstallerDialog(QDialog):
             os.makedirs(chemin)
 
         if sys.platform.startswith("win"):
-            return os.path.join(home, f"AppData/Roaming/QGIS/{dlg.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
+            return os.path.join(home, f"AppData/Roaming/QGIS/{self.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
         elif sys.platform.startswith("darwin"):
-            return os.path.join(home, f"Library/Application Support/QGIS/{dlg.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
+            return os.path.join(home, f"Library/Application Support/QGIS/{self.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
         else:
-            return os.path.join(home, f".local/share/QGIS/{dlg.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
+            return os.path.join(home, f".local/share/QGIS/{self.dossier_qgis}/profiles/{self.dossier_profil}/python/plugins")
 
 
     # téléchargement de : plugins.xml
@@ -313,14 +289,18 @@ class InstallerDialog(QDialog):
                 compt += 1
 
         log(f"Impossible de télécharger {url} après toutes les tentatives.")
-        QMessageBox.critical(self, "erreur", f"Impossible de télécharger:\n\t {url}.")
+        text_erreur = (f"Impossible de télécharger le fichier nécessaire à l'installation des plugins :\n\n"
+                f"{url}\n\n"
+                "Veuillez vérifier votre connexion internet et vos paramètres de proxy.\n"
+                "Le fichier de log va s'ouvrir pour plus de détails.")
+        QMessageBox.critical(self, "Erreur critique", text_erreur)
         os.startfile(FIC_LOG)
-        raise Exception("Impossible de télécharger le fichier après toutes les tentatives.")
+        return False
 
     def getplugin_from_xml(self,tmp_xml):
         tree = ET.parse(tmp_xml)
         root = tree.getroot()
-        self.dico_plugin = {}
+        self.dico_plugin_from_xml = {}
         # Parcourir les plugins
         for plugin in root.findall("pyqgis_plugin"):
             name = plugin.get("name")
@@ -332,8 +312,15 @@ class InstallerDialog(QDialog):
                 changelog = ET.Element("changelog")
                 changelog.text = ""
             download_url = plugin.find("download_url").text
-            self.dico_plugin[name] = [version, description.text,changelog.text,download_url]
-        return self.dico_plugin
+            # self.dico_plugin_from_xml[name] = [version, description.text, changelog.text, download_url]
+            # plus explicite
+            self.dico_plugin_from_xml[name] = {
+                "version": version,
+                "description": description.text,
+                "changelog": changelog.text,
+                "download_url": download_url
+            }
+        return self.dico_plugin_from_xml
 
 
     def remove_readonly(self,func, path, excinfo):
@@ -345,8 +332,9 @@ class InstallerDialog(QDialog):
         compt = 0
         progress = DownloadProgress(self, len(list_plugins)+1)
         for idx, plugin in enumerate(list_plugins, start=1):
+            log(f"Téléchargement de : {plugin} version : {self.dico_plugin_from_xml[plugin]['version']}")
             progress.update(idx, f"Téléchargement de : {plugin}")
-            download_url = self.dico_plugin[plugin][3]
+            download_url = self.dico_plugin_from_xml[plugin]['download_url']
             fic_source = download_url
 
             fic_dest = f"{rep_installe}/{plugin}.zip"
@@ -369,7 +357,6 @@ class InstallerDialog(QDialog):
                     log(f"dezip de : {fic_dest}")
             except zipfile.BadZipFile:
                 log(f"ZIP corrompu : {fic_dest}")
-
             except FileNotFoundError:
                 log(f"Fichier introuvable : {fic_dest}")
             except PermissionError:
@@ -404,8 +391,8 @@ class InstallerDialog(QDialog):
                 self.list_plugin_installe.append(plugin_name)
         # on ajoute l'installateur dans la liste des plugins à installer,
         # car il n'est pas dans la liste
-        for plugin in self.dico_plugin:
-            if INSTALLATEUR in plugin or UPDATE_EXE in plugin:
+        for plugin in self.dico_plugin_from_xml:
+            if INSTALLATEUR in plugin:
                 self.list_plugin_installe.append(plugin)
         progress = self.telecharge_plugins(self.list_plugin_installe)
         progress.setlabel("Finalisation de l'installation")
@@ -413,7 +400,7 @@ class InstallerDialog(QDialog):
         # Mettre à jour uniquement les versions installées et la couleur
         for row in range(self.tablePlugins.rowCount()):
             nom = self.tablePlugins.item(row, 0).text()
-            valeur = self.dico_plugin.get(nom)
+            valeur = self.dico_plugin_from_xml.get(nom)
             if not valeur:
                 continue
             version = valeur[0]
@@ -495,15 +482,14 @@ if __name__ == "__main__":
     # Affichage dans QMessageBox : convertir en slash pour HTML
     chemin_profils_aff = chemin_profils.as_posix()
     if not os.path.exists(chemin_profils):
-        QMessageBox.warning(None,"Avertissement",f"<b>Avertissement :</b><br>Le répertoire de QGIS :<br><br><code>{chemin_profils_aff}</code><br><br>n'existe pas.")
+        QMessageBox.warning(None,"Avertissement",f"<b>Avertissement :</b><br>Aucun profil trouvé dans  :<br><br><code>{chemin_profils_aff}</code>")
         log(f"Le répertoire de QGIS : {chemin_profils_aff} -> n'existe pas.")
         sys.exit(1)
-
     # recuperation des différents profils de QGIS pour trouver le bon dossier d'installation des plugins
     rep_profils = [d.name for d in chemin_profils.iterdir() if d.is_dir()]
     if len(rep_profils) == 0 :
         QMessageBox.information(None,"Installateur de plugins","Aucun profil QGIS n'a été trouvé")
-        log("aucun profil QGIS n'a été trouvé")
+        log(f"aucun profil QGIS n'a été trouvé dans le répertoire : {chemin_profils_aff}")
         sys.exit(1)
 
     ok = True
@@ -519,9 +505,9 @@ if __name__ == "__main__":
     if not rep_installe:
         QMessageBox.warning(None, "Installateur de plugins", "Impossible de trouver le dossier d'installation des plugins QGIS")
 
-    dlg.initialiser_apres_profil()
-    dlg.setWindowFlags(dlg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
-    dlg.exec()
+    if dlg.initialiser_apres_profil():
+        dlg.setWindowFlags(dlg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+        dlg.exec()
 
 
 
