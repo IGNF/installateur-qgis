@@ -30,7 +30,10 @@ from urllib.parse import urlparse;
 # ==== COLLECTIVITES ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_collectivites.xml?nocache=1"
 # ==== TEST ====
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_test.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_test.xml?nocache=1"
+# ==== RECETTE ====
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_recette.xml?nocache=1"
+
 
 REP_QGIS = "AppData/Roaming/QGIS"
 
