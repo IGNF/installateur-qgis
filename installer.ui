@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1446</width>
+    <width>1102</width>
     <height>433</height>
    </rect>
   </property>
@@ -95,12 +95,12 @@
       <widget class="QPushButton" name="pushButton_installer">
        <property name="maximumSize">
         <size>
-         <width>100</width>
+         <width>250</width>
          <height>16777215</height>
         </size>
        </property>
        <property name="text">
-        <string>Installer ...</string>
+        <string>Installer les plugins sélectionnés ...</string>
        </property>
       </widget>
      </item>

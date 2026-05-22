@@ -166,6 +166,7 @@ class InstallerDialog(QDialog):
 
             if version_installe is None:
                 item_version_installe.setText("Non installé")
+                item_name.setCheckState(Qt.CheckState.Checked)
                 item_version_installe.setBackground(QBrush(QColor(COLOR_NON_INSTALLE)))
             elif version_installe != version:
                 item_name.setCheckState(Qt.CheckState.Checked)
