@@ -1,7 +1,6 @@
 import os
 import shutil
 import stat
-import subprocess
 import sys
 from datetime import datetime
 
@@ -13,7 +12,7 @@ import requests
 from PyQt6.QtCore import Qt, QCoreApplication
 from PyQt6.QtGui import QFont, QBrush, QColor
 from PyQt6.QtWidgets import QApplication, QDialog, QTableWidgetItem, QMessageBox, QInputDialog, \
-    QAbstractItemView
+    QAbstractItemView, QComboBox
 from PyQt6.uic import loadUi
 
 import tempfile
@@ -21,10 +20,11 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 from progressbar import DownloadProgress
-from urllib.parse import urlparse;
+from urllib.parse import urlparse
+
 
 # ==== TOUS ====
-# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
 # ==== SDIS ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_sdis.xml?nocache=1"
 # ==== COLLECTIVITES ====
@@ -32,7 +32,7 @@ from urllib.parse import urlparse;
 # ==== TEST ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_test.xml?nocache=1"
 # ==== RECETTE ====
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_recette.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_recette.xml?nocache=1"
 
 
 REP_QGIS = "AppData/Roaming/QGIS"
@@ -44,6 +44,7 @@ FIC_LOG = "log_installateur.txt"
 DOSSIER_A_GARDER = "config_plugin_maitre"
 METADATA_FILE = "metadata.txt"
 COLOR_MAJ = "#FFF176"
+COLOR_COMBO = "#bababa"
 COLOR_NON_INSTALLE = "#ff6e6e"
 
 TITRE = f"{INSTALLATEUR} : Installateur de plugins IGN"
@@ -129,7 +130,7 @@ class InstallerDialog(QDialog):
         self.tablePlugins.setColumnWidth(0, 220)
         self.tablePlugins.setColumnWidth(1, 130)
         self.tablePlugins.setColumnWidth(2, 120)
-        self.tablePlugins.setColumnWidth(3, 400)
+        self.tablePlugins.setColumnWidth(3, 350)
         self.tablePlugins.setColumnWidth(4, 400)
         self.tablePlugins.horizontalHeader().setStretchLastSection(True)
 
@@ -156,7 +157,22 @@ class InstallerDialog(QDialog):
             item_version_dispo = QTableWidgetItem(version)
             item_version_installe = QTableWidgetItem(version_installe)
             item_descr = QTableWidgetItem(description)
+            # combobox pour le changelog sinon QTableWidgetItem
             item_changelog = QTableWidgetItem(changelog)
+            item_changelog_combo = QComboBox()
+
+            # TODO : verifier si connexion internet !!
+
+            # si changelog est une liste
+            if not changelog:
+                changelog = "Aucune information sur les dernières modifications"
+                item_changelog.setText(changelog)
+            changelog  = changelog.replace("\\n", "\n")
+            list_log = changelog.splitlines()
+            item_changelog_combo.addItems(list_log)
+            # si changelog est sur plusieurs lignes, on colorie la cellule
+            if len(list_log) > 1:
+                item_changelog_combo.setStyleSheet(f"background-color: {COLOR_COMBO}")
 
             if nom == PLUGIN_MAITRE:
                 item_name.setCheckState(Qt.CheckState.Checked)
@@ -192,8 +208,11 @@ class InstallerDialog(QDialog):
             item_descr.setFlags(item_descr.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.tablePlugins.setItem(ligne, 3, item_descr)
 
-            item_changelog.setFlags(item_changelog.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.tablePlugins.setItem(ligne, 4, item_changelog)
+            if len(list_log) >1:
+                self.tablePlugins.setCellWidget(ligne, 4, item_changelog_combo)
+            else:
+                self.tablePlugins.setItem(ligne, 4, item_changelog)
+
 
     def init_tablewidget_info(self):
         self.tableWidget_info.setColumnCount(2)
