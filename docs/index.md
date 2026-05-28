@@ -10,7 +10,7 @@ style="width:1.38681in;height:1.47153in"
 alt="logo_IGN_pour_lettre" /></td>
 <td style="text-align: center;"><p><strong>Manuel utilisateur de
 « PluginIGN_Installer »</strong></p>
-<p><strong>V0.6</strong></p></td>
+</td>
 </tr>
 <tr>
 <td style="text-align: center;"></td>

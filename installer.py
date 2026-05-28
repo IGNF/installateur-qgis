@@ -2,6 +2,7 @@ import os
 import shutil
 import stat
 import sys
+import webbrowser
 from datetime import datetime
 
 from pypac import PACSession
@@ -86,10 +87,7 @@ class InstallerDialog(QDialog):
         dlgAProposDe.exec()
 
     def afficheDoc(self):
-        if not os.path.isfile(os.path.join(os.path.dirname(__file__), "installateur.pdf")):
-            QMessageBox.warning(self,"Information","La documentation est introuvable")
-        else:
-            os.popen(os.path.join(os.path.dirname(__file__), "installateur.pdf"))
+        webbrowser.open("https://ignf.github.io/installateur-qgis/")
 
     def initialiser_apres_profil(self):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xml") as tmp:
