@@ -65,10 +65,10 @@ Ici on retrouve tous les plugins disponibles pour installation.
 
 - Version installée : version du plugin correspondant installé dans
   QGIS.
-
+[maj_version_on_github.py](../MAJ_GITHUB/maj_version_on_github.py)
 # Installation des plugins sélectionnés
 
-- Il faut choisir les plugins à installer puis clique sur « installer »
+- Il faut choisir les plugins à installer puis cliquer sur « installer »
 
 - Le plugin maitre étant obligatoire il est par défaut sélectionné, il
   ne peut pas être décoché.

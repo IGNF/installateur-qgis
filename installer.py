@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 
 
 # ==== TOUS ====
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
 # ==== SDIS ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_sdis.xml?nocache=1"
 # ==== COLLECTIVITES ====
@@ -33,7 +33,7 @@ PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugin
 # ==== TEST ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_test.xml?nocache=1"
 # ==== RECETTE ====
-# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_recette.xml?nocache=1"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_recette.xml?nocache=1"
 
 
 REP_QGIS = "AppData/Roaming/QGIS"
