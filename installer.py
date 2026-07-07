@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 
 
 # ==== TOUS ====
-# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
+PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins.xml?nocache=1"
 # ==== SDIS ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_sdis.xml?nocache=1"
 # ==== COLLECTIVITES ====
@@ -33,16 +33,16 @@ from urllib.parse import urlparse
 # ==== TEST ====
 # PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_test.xml?nocache=1"
 # ==== RECETTE ====
-PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_recette.xml?nocache=1"
+# PLUGINS_XML_GITHUB = "https://raw.githubusercontent.com/IGNF/collaboratif-plugins/main/plugins_recette.xml?nocache=1"
 
 
 REP_QGIS = "AppData/Roaming/QGIS"
 
 PAC_URL = "http://calamarlog.ign.fr/proxy.pac"
-PLUGIN_MAITRE = "plugin_maitre"
+PLUGIN_MAITRE = "PluginsManager"
 INSTALLATEUR = "PluginIGN_Installer"
 FIC_LOG = "log_installateur.txt"
-DOSSIER_A_GARDER = "config_plugin_maitre"
+DOSSIER_A_GARDER = "config_PluginsManager"
 METADATA_FILE = "metadata.txt"
 COLOR_MAJ = "#FFF176"
 COLOR_COMBO = "#bababa"
